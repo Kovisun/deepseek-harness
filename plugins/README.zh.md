@@ -41,8 +41,12 @@
 1. 本插件把删除能力公布为进程级钩子 `globalThis.__dshSessionDeletion`（转发到上面的
    本机回环路由，两个调用方共用同一条删除路径）；
 2. 中继插件 `ds-harness-remote` 的白名单放行 `session/deletion` / `session/delete`，并在
-   调用 Gateway 之前用这个钩子作答（补丁分支：`Kovisun/ds-harness-remote`，
-   `feat(bridge): carry permanent session deletion to a local Host plugin`）；
+   调用 Gateway 之前用这个钩子作答（fork：`Kovisun/ds-harness-remote`，
+   `feat(bridge): carry permanent session deletion to a local Host plugin`）。
+   Mac 上它以 `file:` 本地副本安装、**不跟随 npm 上游**：
+   `"ds-harness-remote": "file:/Users/admin/Documents/Pi/plugins/ds-harness-remote"`，
+   所以插件管理器不会把上游版本覆盖进来；升级要改这份副本或重新构建
+   （见该 fork 的 `LOCAL-FORK.zh.md`）；
 3. 手机端 `dsh_client` 新增可选能力 `SessionDeletionCarrier`，由 `dsh_remote` 的
    `RemoteTunnelCarrier` 实现（补丁：`Kovisun/dsh-Go`，
    `feat(remote): permanent session deletion over the relay`）。
