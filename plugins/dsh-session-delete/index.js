@@ -15,6 +15,7 @@
 import { readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const name = 'session-delete'
 
@@ -24,6 +25,8 @@ export const inject = ['webServer']
 const ROUTE_PATH = '/api-ext/session.delete'
 const SESSION_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u
 const BODY_LIMIT = 1 << 16
+/** Same-origin envelope of one relay refusal, kept in the relay's own error shape. */
+const rpcFailure = (code, message) => ({ ok: false, error: { code, message, details: {} } })
 
 /** `$DSH_HOME/sessions`，与宿主一致（DSH_HOME 未设置时回退到 ~/.dsh）。 */
 function sessionsRoot() {
@@ -204,6 +207,53 @@ function isLoopbackCaller(req) {
   return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
 }
 
+/**
+ * Publish the deletion to the DSH Remote relay.
+ *
+ * The relay tunnels Typert RPCs, not HTTP: a peer deletes through its `session/delete`
+ * endpoint, and the relay's bridge asks this process-level hook instead of dispatching to the
+ * Gateway, which has no delete endpoint of its own. Publishing on `globalThis` keeps the two
+ * plugins independent — neither loads the other's module instance — and a Host without the
+ * relay never reads it. The hook forwards to the loopback route above, so both callers share
+ * one deletion path (running-session guard, ordered teardown, workspace detach, artifacts,
+ * projection cache).
+ * @returns the disposer that withdraws the hook.
+ */
+function installRemoteDeletion(ctx, webServer) {
+  if (typeof webServer.getOrigin !== 'function') return () => {}
+
+  const localDelete = async (args) => {
+    const sessionId = args?.sessionId
+    if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) {
+      return rpcFailure('bad-request', 'missing or invalid sessionId')
+    }
+    let origin
+    try {
+      origin = webServer.getOrigin()
+    } catch {
+      return rpcFailure('unavailable', 'the Host web server is not listening yet')
+    }
+    try {
+      const response = await fetch(`${origin}${ROUTE_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (body?.ok === true) return { ok: true, value: body.value }
+      return rpcFailure(body?.error?.code ?? 'failed', body?.error?.message ?? `HTTP ${response.status}`)
+    } catch (error) {
+      return rpcFailure('failed', String(error?.message ?? error))
+    }
+  }
+
+  globalThis.__dshSessionDeletion = localDelete
+  ctx.logger?.info?.('session-delete: 已向 DSH Remote 中继公布 session/delete 与 session/deletion')
+  return () => {
+    if (globalThis.__dshSessionDeletion === localDelete) delete globalThis.__dshSessionDeletion
+  }
+}
+
 export function apply(ctx) {
   const webServer = ctx.webServer
   if (webServer === undefined) throw new Error('dsh-session-delete: 缺少 webServer 服务')
@@ -285,6 +335,8 @@ export function apply(ctx) {
       }
     },
   }), 'session-delete: 删除路由')
+
+  ctx.effect(() => installRemoteDeletion(ctx, webServer), 'session-delete: 中继删除端点')
 
   ctx.logger?.info?.(`session-delete: 已注册 POST ${ROUTE_PATH}`)
 }

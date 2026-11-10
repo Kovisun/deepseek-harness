@@ -22,7 +22,7 @@
 
 安装、验证与边界见 [`dsh-session-delete/README.zh.md`](dsh-session-delete/README.zh.md)。
 
-## 已知未打通：手机 DSH Go 经中继的「永久删除」
+## 手机 DSH Go 经中继的「永久删除」
 
 手机 DSH Go 走 **DSH Remote（中继）** 时，「永久删除」显示「此主机不支持安全永久删除」。
 判定发生在手机端，且中继通道没有删除入口：
@@ -36,6 +36,15 @@
   主机侧 `ds-harness-remote` 的 `HARNESS_REMOTE_ALLOWLIST`），其中没有删除端点，
   客户端 `call()` 会在本地直接拒绝。
 
-打通需要两侧同时改：主机端 `ds-harness-remote` 增加删除端点（转发到本插件的删除实现），
-手机端在 carrier 上加可选能力接口并在判定里使用它。主机端插件不在本仓库
-（upstream：`liguobao/ds-harness-remote`）。
+**已打通（2026-11-10）**，三处配合：
+
+1. 本插件把删除能力公布为进程级钩子 `globalThis.__dshSessionDeletion`（转发到上面的
+   本机回环路由，两个调用方共用同一条删除路径）；
+2. 中继插件 `ds-harness-remote` 的白名单放行 `session/deletion` / `session/delete`，并在
+   调用 Gateway 之前用这个钩子作答（补丁分支：`Kovisun/ds-harness-remote`，
+   `feat(bridge): carry permanent session deletion to a local Host plugin`）；
+3. 手机端 `dsh_client` 新增可选能力 `SessionDeletionCarrier`，由 `dsh_remote` 的
+   `RemoteTunnelCarrier` 实现（补丁：`Kovisun/dsh-Go`，
+   `feat(remote): permanent session deletion over the relay`）。
+
+没有第 2 项的主机会继续回答 `supported: false`，即退回「不支持、可用归档」，不会报错。
