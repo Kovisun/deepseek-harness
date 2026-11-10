@@ -1,0 +1,6 @@
+# dsh-session-delete bundle patch：把插件行插入 dsh-base 之上。
+# Host 半边在 webServer 上注册 POST /api-ext/session.delete，
+# Client 半边往会话菜单里加一条「删除会话」。
+- insert:
+    - id: session-delete
+      name: 'dsh-session-delete'

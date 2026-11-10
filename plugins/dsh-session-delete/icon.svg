@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Delete session">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#2b2f36"/>
+  <g fill="none" stroke="#f2f4f7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 22h22"/>
+    <path d="M26 22v-4h12v4"/>
+    <path d="M24 22l1.6 20.4a3 3 0 0 0 3 2.6h6.8a3 3 0 0 0 3-2.6L40 22"/>
+    <path d="M29 29v9M35 29v9"/>
+  </g>
+  <circle cx="46" cy="18" r="6" fill="#e5484d"/>
+  <path d="M43.5 18h5M46 15.5v5" stroke="#fff" stroke-width="2" stroke-linecap="round" transform="rotate(45 46 18)"/>
+</svg>

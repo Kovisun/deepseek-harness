@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Delete session",
+    "description": "Adds a real delete entry to each session’s ⋮ menu: removes the log, the workspace membership and the live store entry. Running sessions are refused."
+  }
+}
